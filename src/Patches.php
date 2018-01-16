@@ -167,24 +167,25 @@ class Patches implements PluginInterface, EventSubscriberInterface {
     $operations = $event->getOperations();
     $this->io->write('<info>Gathering patches for dependencies. This might take a minute.</info>');
     foreach ($operations as $operation) {
-      if (!in_array($operation->getJobType(), array('install', 'update'))) {
-        continue;
-      }
-      $package = $this->getPackageFromOperation($operation);
-      $this->io->write('<info>Check package' . $package->getName() . '.</info>');
-      $extra = $package->getExtra();
-      if (isset($extra['patches']) && isset($patches_ignore[$package->getName()])) {
-        foreach ($patches_ignore[$package->getName()] as $package_name => $patches) {
-          if (isset($extra['patches'][$package_name])) {
-            $extra['patches'][$package_name] = array_diff($extra['patches'][$package_name], $patches);
+      if ($operation->getJobType() == 'install' || $operation->getJobType() == 'update') {
+        $package = $this->getPackageFromOperation($operation);
+        $this->io->write('<info>Check package' . $package->getName() . '.</info>');
+        $extra = $package->getExtra();
+        if (isset($extra['patches']) && isset($patches_ignore[$package->getName()])) {
+          $this->io->write('<info>Patches:' . print_r($extra['patches'], TRUE) . '</info>');
+          $this->io->write('<info>Ignore:' . print_r($patches_ignore[$package->getName()], TRUE) . '</info>');
+          foreach ($patches_ignore[$package->getName()] as $package_name => $patches) {
+            if (isset($extra['patches'][$package_name])) {
+              $extra['patches'][$package_name] = array_diff($extra['patches'][$package_name], $patches);
+            }
           }
+          $this->patches = $this->arrayMergeRecursiveDistinct($this->patches, $extra['patches']);
+          $this->io->write('<info>Patches for package ' . $package->getName() . ':' . print_r($this->patches) . '</info>');
         }
-        $this->patches = $this->arrayMergeRecursiveDistinct($this->patches, $extra['patches']);
-        $this->io->write('<info>Patches for package ' . $package->getName() . ':' . print_r($this->patches) . '</info>');
-      }
-      // Unset installed patches for this package.
-      if (isset($this->installedPatches[$package->getName()])) {
-        unset($this->installedPatches[$package->getName()]);
+        // Unset installed patches for this package.
+        if (isset($this->installedPatches[$package->getName()])) {
+          unset($this->installedPatches[$package->getName()]);
+        }
       }
     }
 
